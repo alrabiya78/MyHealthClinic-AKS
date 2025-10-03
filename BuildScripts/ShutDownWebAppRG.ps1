@@ -1,18 +1,31 @@
-[cmdletbinding()]
+[CmdletBinding()]
 param (
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string] $ResourceGroupName
 )
 
+try {
+    # Get all websites in the resource group
+    $websites = Get-AzureRmWebApp -ResourceGroupName $ResourceGroupName
 
-# Get Websites/webapps
-$websites = Get-AzureRmWebApp -ResourceGroupName "$ResourceGroupName" 
+    if (-not $websites) {
+        Write-Warning "No web apps found in resource group '$ResourceGroupName'."
+        return
+    }
 
-# Restart each website
-Write-Output "Starting with the nap."
+    Write-Output "Starting the restart process for web apps in '$ResourceGroupName'."
 
-foreach ($website In $websites)
-{
-	Write-Output "Sleeping $($website.Name)"
-    Stop-AzureRmWebApp $website.Name -ResourceGroupName "$ResourceGroupName" 
+    foreach ($website in $websites) {
+        Write-Output "Stopping web app: $($website.Name)..."
+        try {
+            Stop-AzureRmWebApp -Name $website.Name -ResourceGroupName $ResourceGroupName -ErrorAction Stop
+            Write-Output "Successfully stopped $($website.Name)."
+        } catch {
+            Write-Warning "Failed to stop $($website.Name): $_"
+        }
+    }
+
+    Write-Output "Restart process completed."
+} catch {
+    Write-Error "An error occurred while retrieving web apps: $_"
 }
